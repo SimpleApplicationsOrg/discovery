@@ -1,4 +1,4 @@
-package domain
+package serviceDomain
 
 type Discovery interface {
 	Register(string, string) error

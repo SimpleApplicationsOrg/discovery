@@ -11,7 +11,7 @@ import (
 func main() {
 	server := serviceServer.NewSimpleServer()
 
-	discovery, err := domain.CreateDiscovery(30 * time.Second)
+	discovery, err := serviceDomain.CreateDiscovery(30 * time.Second)
 	if err != nil {
 		panic("Error creating discovery registry: " + err.Error())
 	}

@@ -1,4 +1,4 @@
-package domain
+package serviceDomain
 
 import (
 	"errors"
