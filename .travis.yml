@@ -1,2 +1,4 @@
 language: go
 script: go get github.com/braintree/manners && go test
+after_success:
+  - bash <(curl -s https://codecov.io/bash)
