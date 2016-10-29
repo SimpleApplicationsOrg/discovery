@@ -49,6 +49,8 @@ func (registry serviceRegistry) Register(name string, address string) (err error
 		service.Instances = make(map[string]Service)
 	}
 
+	log.Println("Registering address " + address + " for service " + name)
+
 	instance := Service{Name: name, Address: address, LastRegister: time.Now()}
 	service.Instances[address] = instance
 	registry.services[name] = service
@@ -74,9 +76,12 @@ func (registry serviceRegistry) Renew(name string, address string) (err error) {
 
 	}
 
+	log.Println("Renewing address " + address + " for service " + name)
+
 	instance, ok := service.Instances[address]
 
 	instance.LastRegister = time.Now()
+	service.Instances[address] = instance
 
 	return
 
@@ -113,6 +118,7 @@ func (registry serviceRegistry) Fetch(name string) (instance Service, err error)
 }
 
 func (registry serviceRegistry) FetchAll() map[string]ServiceInstances {
+	log.Println("Getting all instances")
 	return registry.services
 }
 

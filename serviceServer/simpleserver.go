@@ -51,7 +51,7 @@ func (server SimpleServer) loggingHandler() http.Handler {
 }
 
 func (server SimpleServer) AddMapping(path string, handler http.HandlerFunc) {
-	server.mux.HandleFunc(fmt.Sprintf("/%s/", path), handler)
+	server.mux.HandleFunc(path, handler)
 }
 
 func (server SimpleServer) Start() {

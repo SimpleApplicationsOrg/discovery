@@ -91,9 +91,9 @@ func TestUnregister(t *testing.T) {
 
 }
 
-func Test_Given3secLease_WhenServiceLeaseExpires_ThenServiceFetchReturnsError(t *testing.T) {
+func Test_Given1secLease_WhenServiceLeaseExpires_ThenServiceFetchReturnsError(t *testing.T) {
 
-	discovery, _ := CreateDiscovery(3 * time.Second)
+	discovery, _ := CreateDiscovery(1 * time.Second)
 	discovery.Register("TEST", "ADDRESS")
 
 	time.Sleep(4 * time.Second)
