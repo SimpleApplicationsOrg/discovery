@@ -5,7 +5,10 @@ import (
 	"log"
 	"math/rand"
 	"time"
+	"sync"
 )
+
+var mutex sync.Mutex
 
 type serviceRegistry struct {
 	services      map[string]ServiceInstances
@@ -27,10 +30,14 @@ func (registry serviceRegistry) Close() {
 
 func (registry serviceRegistry) Register(name string, address string) (err error) {
 
+
 	if len(name) == 0 || len(address) == 0 {
 		err = errors.New("Name and Address are mandatory")
 		return
 	}
+
+	mutex.Lock()
+	defer mutex.Unlock()
 
 	service, ok := registry.services[name]
 	if !ok {
@@ -53,12 +60,17 @@ func (registry serviceRegistry) Renew(name string, address string) (err error) {
 
 	if len(name) == 0 {
 		err = errors.New("Name is mandatory")
+		return
 	}
+
+	mutex.Lock()
+	defer mutex.Unlock()
 
 	service, ok := registry.services[name]
 
 	if !ok {
 		err = errors.New("Service not found")
+		return
 
 	}
 
@@ -76,6 +88,9 @@ func (registry serviceRegistry) Fetch(name string) (instance Service, err error)
 		err = errors.New("Name is mandatory")
 		return
 	}
+
+	mutex.Lock()
+	defer mutex.Unlock()
 
 	service, ok := registry.services[name]
 
@@ -103,8 +118,10 @@ func (registry serviceRegistry) FetchAll() map[string]ServiceInstances {
 
 func (registry serviceRegistry) Unregister(name string, address string) (err error) {
 
+
 	if len(name) == 0 {
 		err = errors.New("Name is mandatory")
+		return
 	}
 
 	service, ok := registry.services[name]
@@ -134,7 +151,7 @@ func (registry serviceRegistry) unregisterDaemon() {
 
 	for {
 		select {
-		case closeDaemon := <- registry.closeDaemon:
+		case closeDaemon := <-registry.closeDaemon:
 			if closeDaemon {
 				return
 			}
@@ -149,8 +166,12 @@ func (registry serviceRegistry) unregisterDaemon() {
 
 func (registry serviceRegistry) unregisterExpiredServices() {
 
+	mutex.Lock()
+	defer mutex.Unlock()
+
 	services := make(map[string]ServiceInstances)
 	for k, v := range registry.services {
+
 		services[k] = v
 	}
 
