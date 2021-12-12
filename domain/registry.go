@@ -15,8 +15,7 @@ type Service struct {
 }
 
 type ServiceRegistry struct {
-	mu            sync.Mutex
-	services      map[string][]Service
+	services      sync.Map
 	leaseDuration time.Duration
 	closeDaemon   chan bool
 }
@@ -29,7 +28,7 @@ func CreateDiscovery(leaseDuration time.Duration) (*ServiceRegistry, error) {
 }
 
 func initializeRegistry(lease time.Duration) *ServiceRegistry {
-	registry := ServiceRegistry{services: make(map[string][]Service), leaseDuration: lease}
+	registry := ServiceRegistry{leaseDuration: lease}
 	registry.closeDaemon = make(chan bool)
 
 	go registry.unregisterDaemon()
@@ -41,85 +40,96 @@ func (r *ServiceRegistry) Close() {
 }
 
 func (r *ServiceRegistry) Register(name string, address string) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
 	if len(name) == 0 || len(address) == 0 {
 		return errors.New("name and Address are mandatory")
 	}
 
-	services, ok := r.services[name]
+	var services []Service
+	servicesI, ok := r.services.Load(name)
 	if !ok {
-		r.services[name] = make([]Service, 0)
+		r.services.Store(name, make([]Service, 0))
+	} else {
+		services = servicesI.([]Service)
 	}
 
-	for _, svc := range services {
+	for i, svc := range services {
 		if svc.Address == address {
 			log.Println("Updating address " + address + " for service " + name)
-			svc.LastRegister = time.Now()
+			services[i].LastRegister = time.Now()
 
-			r.services[name] = services
+			r.services.Store(name, services)
 			return nil
 		}
 	}
 
 	log.Println("Registering address " + address + " for service " + name)
 	instance := Service{Name: name, Address: address, LastRegister: time.Now()}
-	r.services[name] = append(r.services[name], instance)
+	r.services.Store(name, append(services, instance))
 
 	return nil
 }
 
 func (r *ServiceRegistry) Fetch(name string) (Service, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
 	if len(name) == 0 {
 		return Service{}, errors.New("name is mandatory")
 	}
 
-	services, ok := r.services[name]
+	var services []Service
+	servicesI, ok := r.services.Load(name)
 	if !ok {
 		return Service{}, errors.New("service not found")
+	} else {
+		services = servicesI.([]Service)
 	}
 
 	return services[rand.Intn(len(services))], nil
 }
 
 func (r *ServiceRegistry) FetchAll() map[string][]Service {
-	r.mu.Lock()
-	defer r.mu.Unlock()
+	servicesMap := make(map[string][]Service)
+	r.services.Range(func(key, value interface{}) bool {
+		servicesMap[key.(string)] = value.([]Service)
+		return true
+	})
 
 	log.Println("Getting all instances")
-	return r.services
+	return servicesMap
 }
 
 func (r *ServiceRegistry) Unregister(name string, address string) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
 	log.Println("unregister", name, address)
 
 	if len(name) == 0 {
 		return errors.New("name is mandatory")
 	}
 
-	services, ok := r.services[name]
+	var services []Service
+	servicesI, ok := r.services.Load(name)
 	if !ok {
 		return errors.New("service not found")
+	} else {
+		services = servicesI.([]Service)
 	}
 
+	toRemove := -1
 	for i, svc := range services {
 		if svc.Address == address {
 			log.Println("Removing instance " + address)
-			r.services[name] = remove(r.services[name], i)
+			toRemove = i
 			break
 		}
 	}
+	if toRemove < 0 {
+		return errors.New("address not found")
+	}
 
-	if len(r.services[name]) == 0 {
+	services[toRemove] = services[len(services)-1]
+	services = services[:len(services)-1]
+	r.services.Store(name, services)
+	
+	if len(services) == 0 {
 		log.Println("Removing service " + name)
-		delete(r.services, name)
+		r.services.Delete(name)
 	}
 
 	return nil
@@ -150,9 +160,4 @@ func (r *ServiceRegistry) unregisterExpiredServices() {
 			}
 		}
 	}
-}
-
-func remove(s []Service, i int) []Service {
-	s[i] = s[len(s)-1]
-	return s[:len(s)-1]
 }
