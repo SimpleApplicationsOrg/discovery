@@ -1,9 +1,16 @@
-package serviceDomain
+package domain
 
 import (
 	"testing"
 	"time"
 )
+
+func TestCreateDiscovery(t *testing.T) {
+
+	if _, err := CreateDiscovery(time.Second); err != nil {
+		t.Errorf("CreateRegistry() error")
+	}
+}
 
 func TestRegister(t *testing.T) {
 
@@ -53,30 +60,6 @@ func TestFetchRegistry_Fail(t *testing.T) {
 
 }
 
-func TestRenew(t *testing.T) {
-
-	discovery, _ := CreateDiscovery(time.Second)
-	serviceName := "Service Name"
-	serviceAddress := "Service address"
-	discovery.Register(serviceName, serviceAddress)
-
-	if err := discovery.Renew(serviceName, serviceAddress); err != nil {
-		t.Errorf("Renew(%q) failed", serviceName)
-	}
-
-}
-
-func TestRenew_Fail(t *testing.T) {
-
-	discovery, _ := CreateDiscovery(time.Second)
-	serviceName := "Service Name"
-
-	if err := discovery.Renew(serviceName, ""); err == nil {
-		t.Errorf("Renew(%q) failed", serviceName)
-	}
-
-}
-
 func TestUnregister(t *testing.T) {
 
 	discovery, _ := CreateDiscovery(time.Second)
@@ -86,6 +69,20 @@ func TestUnregister(t *testing.T) {
 	time.Sleep(2 * time.Second)
 
 	if _, err := discovery.Fetch(serviceName); err == nil {
+		t.Errorf("Unregister failed to remove %s", serviceName)
+	}
+
+}
+
+func TestUnregister2(t *testing.T) {
+
+	discovery, _ := CreateDiscovery(time.Second)
+	serviceName := "Service Name"
+	serviceAddress := "Service address"
+	discovery.Register(serviceName, serviceAddress)
+	time.Sleep(2 * time.Second)
+
+	if err := discovery.Unregister(serviceName, serviceAddress); err == nil {
 		t.Errorf("Unregister failed to remove %s", serviceName)
 	}
 
@@ -112,14 +109,14 @@ func Test_Given1ServiceWith4Instances_WhenRegisterAll_ThenItCounts1ServiceWith4I
 	discovery.Register("TEST", "ADDRESS3")
 	discovery.Register("TEST", "ADDRESS4")
 
-	services := discovery.FetchAll()
+	servicesMap := discovery.FetchAll()
 	var instancesCount int
-	for _, service := range services {
-		instancesCount = instancesCount + len(service.Instances)
+	for _, services := range servicesMap {
+		instancesCount = instancesCount + len(services)
 	}
 
-	if len(services) != 1 && instancesCount != 4 {
-		t.Errorf("Expected 1 service and 4 instances, but obtained %d services and %d instances", len(services), instancesCount)
+	if len(servicesMap) != 1 && instancesCount != 4 {
+		t.Errorf("Expected 1 service and 4 instances, but obtained %d services and %d instances", len(servicesMap), instancesCount)
 	}
 }
 
@@ -131,13 +128,13 @@ func Test_Given4ServicesWith1InstanceEach_WhenRegisterAll_ThenItCounts4ServicesA
 	discovery.Register("TEST3", "ADDRESS")
 	discovery.Register("TEST4", "ADDRESS")
 
-	services := discovery.FetchAll()
+	servicesMap := discovery.FetchAll()
 	var instancesCount int
-	for _, service := range services {
-		instancesCount = instancesCount + len(service.Instances)
+	for _, services := range servicesMap {
+		instancesCount = instancesCount + len(services)
 	}
 
-	if len(services) != 4 && instancesCount != 4 {
-		t.Errorf("Expected 4 services and 4 instances, but obtained %d services and %d instances", len(services), instancesCount)
+	if len(servicesMap) != 4 && instancesCount != 4 {
+		t.Errorf("Expected 4 services and 4 instances, but obtained %d services and %d instances", len(servicesMap), instancesCount)
 	}
 }

@@ -1,30 +1,27 @@
 package main
 
 import (
-	"context"
-	"github.com/SimpleApplicationsOrg/discovery/serviceDomain"
-	"github.com/SimpleApplicationsOrg/discovery/serviceServer"
-	"log"
+	"github.com/simpleapplications/discovery/domain"
+	"github.com/simpleapplications/discovery/handler"
+	"github.com/simpleapplications/discovery/router"
+	"net/http"
 	"time"
 )
 
+const ServiceHostKeepTime = 5 * time.Second
+
 func main() {
-	server := serviceServer.NewSimpleServer()
-
-	discovery, err := serviceDomain.CreateDiscovery(30 * time.Second)
+	discovery, err := domain.CreateDiscovery(ServiceHostKeepTime)
 	if err != nil {
-		panic("Error creating discovery registry: " + err.Error())
+		panic(err)
 	}
-	log.Println("Starting registry...")
-	defer discovery.Close()
+	h := handler.Discovery{Registry: discovery}
 
-	discovery_ctx := context.WithValue(context.Background(), "discovery", discovery)
+	r := router.New()
+	r.Add(http.MethodPost, "/services", h.Register)
+	r.Add(http.MethodGet, "/services", h.FetchAll)
+	r.Add(http.MethodGet, "/services/{id}", h.Fetch)
+	r.Add(http.MethodDelete, "/services/{id}/hosts/{url}", h.Unregister)
 
-	server.AddMappingWithContext("/register/", "PUT", serviceServer.RegisterHandler, discovery_ctx)
-	server.AddMappingWithContext("/fetch/", "GET", serviceServer.FetchHandler, discovery_ctx)
-	server.AddMappingWithContext("/renew/", "PUT", serviceServer.RenewHandler, discovery_ctx)
-	server.AddMappingWithContext("/fetchAll", "GET", serviceServer.FetchAllHandler, discovery_ctx)
-	server.AddMappingWithContext("/unregister/", "PUT", serviceServer.UnregisterHandler, discovery_ctx)
-
-	server.Start()
+	r.Start()
 }
